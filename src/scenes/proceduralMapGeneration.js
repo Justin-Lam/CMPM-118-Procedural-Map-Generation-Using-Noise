@@ -4,6 +4,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 	xOffset = 0;		// less = left, more = right
 	yOffset = 0;		// less = down, more = up
 	frequency = 0.105;	// less = less diversity/zoom in, more = more diversity/zoom out
+	numOctaves = 4;		// less = simpler, more = more complicated
 	
 	// Methods:
 	constructor() {
@@ -55,27 +56,58 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 	generateTexture()
 	{
-		// Use the perlin noise function to get the color value for each square in texture
+		if (!this.fbmEnabled) {
+			// Use the perlin noise function to get the color value for each square in texture
 
-		for (let y = 0; y < this.textureWidth; y++) {
-			for (let x = 0; x < this.textureWidth; x++) {
-				
-				// Get a perlin value thats between [-1, 1]
-				let value = noise.perlin2((x + this.xOffset) * this.frequency, (y - this.yOffset) * this.frequency);
+			for (let y = 0; y < this.textureWidth; y++) {
+				for (let x = 0; x < this.textureWidth; x++) {
 
-				// Transform the value to be between [0, 1]
-				value = (value + 1) / 2;
-				//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
+					// Get a perlin value thats between [-1, 1]
+					let value = noise.perlin2((x + this.xOffset) * this.frequency, (y - this.yOffset) * this.frequency);
 
-				// Transform the value to be a whole number between [0, 255]
-				value = Math.floor(value * 255);
+					// Transform the value to be between [0, 1]
+					value = (value + 1) / 2;
+					//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
 
-				// Change the square's color
-				this.texture[y][x].fillColor = Phaser.Display.Color.GetColor(value, value, value);
-				
+					// Transform the value to be a whole number between [0, 255]
+					value = Math.floor(value * 255);
+
+					// Change the square's color
+					this.texture[y][x].fillColor = Phaser.Display.Color.GetColor(value, value, value);
+					
+				}
 			}
 		}
+		else {
+			// Use the perlin noise function to get the color value for each square in texture
 
+			for (let y = 0; y < this.textureWidth; y++) {
+				for (let x = 0; x < this.textureWidth; x++) {
+					
+					let result = 0;
+					let amplitude = 1;
+					let frequency = this.frequency;
+					for (let octave = 0; octave < this.numOctaves; octave++) {
+						const n = amplitude * noise.perlin2((x + this.xOffset) * frequency, (y - this.yOffset) * frequency);
+						result += n;
+						amplitude *= 0.5;
+						frequency *= 2;
+					}
+
+					// Transform the value to be between [0, 1]
+					result = (result + 1) / 2;
+					//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
+
+					// Transform the value to be a whole number between [0, 255]
+					result = Math.floor(result * 255);
+
+					// Change the square's color
+					this.texture[y][x].fillColor = Phaser.Display.Color.GetColor(result, result, result);
+					
+				}
+			}
+		}
+		
 		// Get debug info on the texture
 		this.debug();
 	}
@@ -98,8 +130,8 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.moveDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
 		this.moveLeftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
 		this.moveRightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-		this.IncreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-		this.DecreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+		this.increaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+		this.decreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
 		this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 		this.changeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 		this.resetKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -145,7 +177,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.generateTexture();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
-		this.IncreaseFrequencyKey.on("down", (key, event) => {			// increase frequency
+		this.increaseFrequencyKey.on("down", (key, event) => {			// increase frequency
 			if (this.shiftKey.isDown) {
 				this.frequency += largeFrequencyChange;
 			}
@@ -155,7 +187,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.generateTexture();
 			console.log(`frequency = ${this.frequency}`)
 		});
-		this.DecreaseFrequencyKey.on("down", (key, event) => {			// decrease frequency
+		this.decreaseFrequencyKey.on("down", (key, event) => {			// decrease frequency
 			if (this.shiftKey.isDown) {
 				this.frequency -= largeFrequencyChange;
 			}
@@ -169,14 +201,39 @@ class ProceduralMapGeneration extends Phaser.Scene
 			noise.seed(Math.random());
 			this.generateTexture();
 			console.log("changed seed");
-		})
+		});
 		this.resetKey.on("down", (key, event) => {						// reset
 			this.xOffset = this.startingXOffset;
 			this.yOffset = this.startingYOffset;
 			this.frequency = this.startingFrequency;
 			this.generateTexture();
 			console.log("reset");
-		})
+		});
+
+		this.fbmEnabled = false;
+		this.toggleFBMKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+		this.toggleFBMKey.on("down", (key, event) => {					// toggle FBM
+			this.fbmEnabled = !this.fbmEnabled;
+			this.generateTexture();
+			if (this.fbmEnabled) {
+				console.log("FBM enabled");
+			}
+			else {
+				console.log("FBM disabled");
+			}
+		});
+		this.increaseOctavesKey.on("down", (key, event) => {			// increase octaves
+			this.numOctaves++;
+			this.generateTexture();
+			console.log(`octaves = ${this.numOctaves}`);
+		});
+		this.decreaseOctavesKey.on("down", (key, event) => {			// decrease octaves
+			this.numOctaves--;
+			this.generateTexture();
+			console.log(`octaves = ${this.numOctaves}`);
+		});
 	}
 
 	debug()
