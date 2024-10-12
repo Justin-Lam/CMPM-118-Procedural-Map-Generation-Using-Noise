@@ -4,14 +4,13 @@
 let config = {
 	parent: 'phaser-game',
 	type: Phaser.CANVAS,
-	width: 16 * 70,
-	height: 9 * 70,
+	width: 256,
+	height: 256,
 	autoCenter: true,
-	fps: { forceSetTimeOut: true, target: 60 },
 	render: {
 		pixelArt: true 		// prevent pixel art from getting blurred when scaled
 	},
-	scene: [Load, ProceduralMapGeneration]
+	scene: [ProceduralMapGeneration]
 }
 
 const game = new Phaser.Game(config);
