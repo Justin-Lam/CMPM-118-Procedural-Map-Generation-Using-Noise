@@ -207,7 +207,54 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 	generateMap()
 	{
-		// Use the perlin noise function to get each tile in mapData
+		// Generate the texture
+		const texture = this.generateTexture();
+
+		// Fill in mapData
+		const waterTileID = 56;
+		const grassTileID = 40;
+		const dirtTileID = 105;
+		const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
+
+				const value = texture[y][x];
+
+				if (value < this.waterWeight/totalWeight) {								// water
+					this.mapData[y][x] = waterTileID;
+				}
+				else if (value < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
+					this.mapData[y][x] = grassTileID;
+				}
+				else {																	// dirt
+					this.mapData[y][x] = dirtTileID;
+				}
+
+			}
+		}
+
+		// Use mapData to create the map
+		if (this.map != null) {
+			this.map.destroy();		// also destroy any layers
+		}
+		this.map = this.make.tilemap({
+			data: this.mapData,
+			tileWidth: TILE_WIDTH,
+			tileHeight: TILE_WIDTH
+		});
+		const tileset = this.map.addTilesetImage("map pack");
+		const layer = this.map.createLayer(0, tileset, 0, 0);
+	}
+
+	generateTexture()
+	{
+		// Initialize texture
+		const texture = [];
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			texture[y] = [];
+		}
+
+		// Fill in the values of texture by using the perlin noise function on each of texture's elements
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			for (let x = 0; x < MAP_WIDTH; x++) {
 
@@ -239,34 +286,13 @@ class ProceduralMapGeneration extends Phaser.Scene
 				result = (result + 1) / 2;
 				//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
 
-				// Use result to set the tile type
-				const waterTileID = 56;
-				const grassTileID = 40;
-				const dirtTileID = 105;
-				const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
-				if (result < this.waterWeight/totalWeight) {								// water
-					this.mapData[y][x] = waterTileID;
-				}
-				else if (result < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
-					this.mapData[y][x] = grassTileID;
-				}
-				else {																		// dirt
-					this.mapData[y][x] = dirtTileID;
-				}
-
+				// Set the element
+				texture[y][x] = result;
+				
 			}
 		}
 
-		// Use mapData to create the map
-		if (this.map != null) {
-			this.map.destroy();		// also destroy any layers
-		}
-		this.map = this.make.tilemap({
-			data: this.mapData,
-			tileWidth: TILE_WIDTH,
-			tileHeight: TILE_WIDTH
-		});
-		const tileset = this.map.addTilesetImage("map pack");
-		const layer = this.map.createLayer(0, tileset, 0, 0);
+		// Return texture
+		return texture;
 	}
 }
