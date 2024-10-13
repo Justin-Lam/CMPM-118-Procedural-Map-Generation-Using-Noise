@@ -4,7 +4,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 	xOffset = 0;			// less = left, more = right
 	yOffset = 0;			// less = down, more = up
 	frequency = 0.105;		// less = less diversity/zoom in, more = more diversity/zoom out
-	fbmEnabled = false;		// "Fractional Brownian Motion"
+	fbmEnabled = true;		// "Fractional Brownian Motion"
 	numOctaves = 4;			// less = simpler, more = more complicated
 
 	// Control Parameters:
@@ -22,7 +22,9 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 	preload()
 	{
-
+		// Set load path and load map pack
+		this.load.path = './assets/';
+		this.load.image("map pack", "mapPack_spritesheet.png");
 	}
 
 	create()
@@ -34,7 +36,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		// Set noise seed
 		noise.seed(Math.random());
 
-		// Generate initial texture
+		// Generate initial texture and map
 		this.generateTexture();
 	}
 
@@ -46,15 +48,10 @@ class ProceduralMapGeneration extends Phaser.Scene
 	initializeTexture()
 	{
 		// Initialize variables
-		this.textureWidth = game.config.width;
+		this.textureWidth = 10;
 		this.texture = [];
-
-		// Fill in texture with red squares (pixels) as placeholders
 		for (let y = 0; y < this.textureWidth; y++) {
 			this.texture[y] = [];
-			for (let x = 0; x < this.textureWidth; x++) {
-				this.texture[y][x] = this.add.rectangle(x, y, 1, 1, 0xff0000).setOrigin(0);		// 0xff0000 = red
-			}
 		}
 	}
 
@@ -83,6 +80,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 		// Display controls
 		const controls = `
+		<h2>Controls</h2>
 		Move: WASD | SHIFT + WASD <br>
 		Change Freqency: LEFT/RIGHT | SHIFT + LEFT/RIGHT <br>
 		<br>
@@ -221,46 +219,70 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 				}
 				
-				// Transform the value to be between [0, 1]
+				// Transform the value to be between [0, 1] and set the element to it
 				result = (result + 1) / 2;
 				//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
-
-				// Transform the value to be a whole number between [0, 255]
-				result = Math.floor(result * 255);
-
-				// Change the square's color
-				this.texture[y][x].fillColor = Phaser.Display.Color.GetColor(result, result, result);
+				this.texture[y][x] = result;
 
 			}
 		}
+
+		this.generateMap();
 		
 		// Get debug info on the texture
 		this.debug();
 	}
 
-	debug()
+	generateMap()
 	{
-		// Display each pixel's color of texture
-		const textureColors = [];
+		const waterTileID = 56;
+		const grassTileID = 40;
+		const dirtTileID = 105;
+
+		const mapData = [];
 		for (let y = 0; y < this.textureWidth; y++) {
-			textureColors[y] = [];
+			mapData[y] = [];
 		}
+
 		for (let y = 0; y < this.textureWidth; y++) {
 			for (let x = 0; x < this.textureWidth; x++) {
-				const colorInt = this.texture[y][x].fillColor;
-				const rgb = Phaser.Display.Color.IntegerToRGB(colorInt);
-				textureColors[y][x] = rgb.r;
+
+				const value = this.texture[y][x];
+
+				if (value < 0.33) {
+					mapData[y][x] = waterTileID;
+				}
+				else if (value < 0.66) {
+					mapData[y][x] = grassTileID;
+				}
+				else {
+					mapData[y][x] = dirtTileID;
+				}
+
 			}
 		}
-		console.log(textureColors);
 
-		// Display the minimum, maximum, and average color of texture
-		let min = textureColors[0][0];
+		this.map = this.make.tilemap({
+			data: mapData,
+			tileWidth: 64,
+			tileHeight: 64
+		});
+		const tileset = this.map.addTilesetImage("map pack");
+		const layer = this.map.createLayer(0, tileset, 0, 0);
+	}
+
+	debug()
+	{
+		// Display the values of texture
+		console.log(this.texture);
+
+		// Display the minimum, maximum, and average value of texture
+		let min = this.texture[0][0];
 		let max = min;
 		let total = 0;
 		for (let y = 0; y < this.textureWidth; y++) {
 			for (let x = 0; x < this.textureWidth; x++) {
-				const value = textureColors[y][x];
+				const value = this.texture[y][x];
 				min = Math.min(min, value);
 				max = Math.max(max, value);
 				total += value;
@@ -269,7 +291,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		const avg = total / (this.textureWidth*this.textureWidth);
 		console.log(`min: ${min}, max: ${max}, avg: ${avg}`);
 
-		// Display the color of the first pixel of texture
-		console.log(`[0][0] = ${textureColors[0][0]}`)
+		// Display the value of the first element of texture
+		console.log(`[0][0] = ${this.texture[0][0]}`)
 	}
 }
