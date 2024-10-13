@@ -1,7 +1,7 @@
 // debug with extreme prejudice
 "use strict"
 
-const MAP_WIDTH = 20;
+const MAP_WIDTH = 40;
 const TILE_WIDTH = 64;
 
 let config = {
@@ -9,7 +9,7 @@ let config = {
 	type: Phaser.CANVAS,
 	width: MAP_WIDTH * TILE_WIDTH,
 	height: MAP_WIDTH * TILE_WIDTH,
-	zoom: 0.5,
+	zoom: 0.25,
 	autoCenter: true,
 	render: {
 		pixelArt: true 		// prevent pixel art from getting blurred when scaled
