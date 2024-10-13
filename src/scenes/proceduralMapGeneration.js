@@ -7,13 +7,16 @@ class ProceduralMapGeneration extends Phaser.Scene
 	fbmEnabled = true;		// "Fractional Brownian Motion"
 	numOctaves = 4;			// less = simpler, more = more complicated
 
+	// Map Parameters:
+	waterWeight = 2;
+	grassWeight = 1;
+	dirtWeight = 1;
+
 	// Control Parameters:
-	largeOffsetChange = 10;
+	largeOffsetChange = 5;
 	smallOffsetChange = 1;
 	largeFrequencyChange = 0.1;
 	smallFrequencyChange = 0.01;
-	largeTextureWidthChange = 10;
-	smallTextureWidthChange = 1;
 
 	// Methods:
 	constructor() {
@@ -30,28 +33,22 @@ class ProceduralMapGeneration extends Phaser.Scene
 	create()
 	{
 		// Initialize things
-		this.initializeTexture();
+		this.initializeMapVariables();
 		this.initializeControls();
 
 		// Set noise seed
 		noise.seed(Math.random());
 
-		// Generate initial texture and map
-		this.generateTexture();
+		// Generate initial map
+		this.generateMap();
 	}
 
-	update()
+	initializeMapVariables()
 	{
-
-	}
-
-	initializeTexture()
-	{
-		// Initialize variables
-		this.textureWidth = 10;
-		this.texture = [];
-		for (let y = 0; y < this.textureWidth; y++) {
-			this.texture[y] = [];
+		this.map = null;
+		this.mapData = [];
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			this.mapData[y] = [];
 		}
 	}
 
@@ -69,26 +66,26 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.moveDownKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
 		this.moveLeftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
 		this.moveRightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-		this.increaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
-		this.decreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+		this.increaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.PERIOD);
+		this.decreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.COMMA);
 		this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 		this.toggleFBMKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
 		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
-		this.changeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
-		this.resetKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+		this.randomizeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+		this.resetChangesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
 		// Display controls
 		const controls = `
 		<h2>Controls</h2>
 		Move: WASD | SHIFT + WASD <br>
-		Change Freqency: LEFT/RIGHT | SHIFT + LEFT/RIGHT <br>
+		Zoom (change frequency): COMMA/PERIOD | SHIFT + COMMA/PERIOD <br>
 		<br>
-		FBM Toggle: F <br>
+		FBM (default enabled): F <br>
 		Change Octaves: UP/DOWN <br>
 		<br>
-		Change Seed: C <br>
-		Reset: R
+		Randomize Seed: R <br>
+		Reset Changes: C
 		`;
 		document.getElementById("description").innerHTML = controls;
 
@@ -100,7 +97,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.yOffset += this.smallOffsetChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveDownKey.on("down", (key, event) => {					// move down
@@ -110,7 +107,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.yOffset -= this.smallOffsetChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveLeftKey.on("down", (key, event) => {					// move left
@@ -120,7 +117,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.xOffset -= this.smallOffsetChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveRightKey.on("down", (key, event) => {					// move right
@@ -130,7 +127,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.xOffset += this.smallOffsetChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.increaseFrequencyKey.on("down", (key, event) => {			// increase frequency
@@ -140,7 +137,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.frequency += this.smallFrequencyChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`frequency = ${this.frequency}`)
 		});
 		this.decreaseFrequencyKey.on("down", (key, event) => {			// decrease frequency
@@ -150,12 +147,12 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.frequency -= this.smallFrequencyChange;
 			}
-			this.generateTexture();
+			this.generateMap();
 			console.log(`frequency = ${this.frequency}`)
 		});
 		this.toggleFBMKey.on("down", (key, event) => {					// toggle FBM
 			this.fbmEnabled = !this.fbmEnabled;
-			this.generateTexture();
+			this.generateMap();
 			if (this.fbmEnabled) {
 				console.log("FBM enabled");
 			}
@@ -165,35 +162,35 @@ class ProceduralMapGeneration extends Phaser.Scene
 		});
 		this.increaseOctavesKey.on("down", (key, event) => {			// increase octaves
 			this.numOctaves++;
-			this.generateTexture();
+			this.generateMap();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
 		this.decreaseOctavesKey.on("down", (key, event) => {			// decrease octaves
 			this.numOctaves--;
-			this.generateTexture();
+			this.generateMap();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
-		this.changeSeedKey.on("down", (key, event) => {					// change seed
+		this.randomizeSeedKey.on("down", (key, event) => {					// change seed
 			noise.seed(Math.random());
-			this.generateTexture();
+			this.generateMap();
 			console.log("changed seed");
 		});
-		this.resetKey.on("down", (key, event) => {						// reset
+		this.resetChangesKey.on("down", (key, event) => {						// reset
 			this.xOffset = this.startingXOffset;
 			this.yOffset = this.startingYOffset;
 			this.frequency = this.startingFrequency;
 			this.fbmEnabled = this.startingFBMEnabled;
 			this.numOctaves = this.startingNumOctaves;
-			this.generateTexture();
-			console.log("reset");
+			this.generateMap();
+			console.log("reset changes");
 		});
 	}
 
-	generateTexture()
+	generateMap()
 	{
-		// Use the perlin noise function to get the color value for each square in texture
-		for (let y = 0; y < this.textureWidth; y++) {
-			for (let x = 0; x < this.textureWidth; x++) {
+		// Use the perlin noise function to get each tile in mapData
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
 
 				let result = 0;
 				if (this.fbmEnabled) {		// FBM enabled
@@ -219,79 +216,38 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 				}
 				
-				// Transform the value to be between [0, 1] and set the element to it
+				// Transform the value to be between [0, 1]
 				result = (result + 1) / 2;
 				//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
-				this.texture[y][x] = result;
 
-			}
-		}
-
-		this.generateMap();
-		
-		// Get debug info on the texture
-		this.debug();
-	}
-
-	generateMap()
-	{
-		const waterTileID = 56;
-		const grassTileID = 40;
-		const dirtTileID = 105;
-
-		const mapData = [];
-		for (let y = 0; y < this.textureWidth; y++) {
-			mapData[y] = [];
-		}
-
-		for (let y = 0; y < this.textureWidth; y++) {
-			for (let x = 0; x < this.textureWidth; x++) {
-
-				const value = this.texture[y][x];
-
-				if (value < 0.33) {
-					mapData[y][x] = waterTileID;
+				// Use result to set the tile type
+				const waterTileID = 56;
+				const grassTileID = 40;
+				const dirtTileID = 105;
+				const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
+				if (result < this.waterWeight/totalWeight) {								// water
+					this.mapData[y][x] = waterTileID;
 				}
-				else if (value < 0.66) {
-					mapData[y][x] = grassTileID;
+				else if (result < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
+					this.mapData[y][x] = grassTileID;
 				}
-				else {
-					mapData[y][x] = dirtTileID;
+				else {																		// dirt
+					this.mapData[y][x] = dirtTileID;
 				}
 
 			}
 		}
 
+		// Use mapData to create the map
+		if (this.map != null) {
+			this.map.destroy();		// also destroy any layers
+		}
 		this.map = this.make.tilemap({
-			data: mapData,
-			tileWidth: 64,
-			tileHeight: 64
+			data: this.mapData,
+			tileWidth: TILE_WIDTH,
+			tileHeight: TILE_WIDTH
 		});
 		const tileset = this.map.addTilesetImage("map pack");
 		const layer = this.map.createLayer(0, tileset, 0, 0);
-	}
-
-	debug()
-	{
-		// Display the values of texture
-		console.log(this.texture);
-
-		// Display the minimum, maximum, and average value of texture
-		let min = this.texture[0][0];
-		let max = min;
-		let total = 0;
-		for (let y = 0; y < this.textureWidth; y++) {
-			for (let x = 0; x < this.textureWidth; x++) {
-				const value = this.texture[y][x];
-				min = Math.min(min, value);
-				max = Math.max(max, value);
-				total += value;
-			}
-		}
-		const avg = total / (this.textureWidth*this.textureWidth);
-		console.log(`min: ${min}, max: ${max}, avg: ${avg}`);
-
-		// Display the value of the first element of texture
-		console.log(`[0][0] = ${this.texture[0][0]}`)
 	}
 }
