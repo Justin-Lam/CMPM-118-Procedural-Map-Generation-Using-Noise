@@ -70,19 +70,19 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.decreaseFrequencyKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.COMMA);
 		this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 		this.toggleFBMKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
-		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
-		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
 		this.randomizeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 		this.resetChangesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
 		// Display controls
 		const controls = `
-		<h2>Controls</h2>
+		<h2>Controls (open console recommended)</h2>
 		Move: WASD | SHIFT + WASD <br>
 		Zoom (change frequency): COMMA/PERIOD | SHIFT + COMMA/PERIOD <br>
 		<br>
-		FBM (default enabled): F <br>
-		Change Octaves: UP/DOWN <br>
+		Toggle FBM: F <br>
+		Change Octaves: Q/E <br>
 		<br>
 		Randomize Seed: R <br>
 		Reset Changes: C
@@ -131,22 +131,41 @@ class ProceduralMapGeneration extends Phaser.Scene
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.increaseFrequencyKey.on("down", (key, event) => {			// increase frequency
+
+			const mapCenterXY = MAP_WIDTH / 2;
+			const centerXBefore = (mapCenterXY + this.xOffset) * this.frequency;
+			const centerYBefore = (mapCenterXY - this.yOffset) * this.frequency;
+
 			if (this.shiftKey.isDown) {
 				this.frequency += this.largeFrequencyChange;
 			}
 			else {
 				this.frequency += this.smallFrequencyChange;
 			}
+
+			this.xOffset = centerXBefore / this.frequency - mapCenterXY;
+			this.yOffset = -(centerYBefore / this.frequency - mapCenterXY);
+
 			this.generateMap();
 			console.log(`frequency = ${this.frequency}`)
+
 		});
 		this.decreaseFrequencyKey.on("down", (key, event) => {			// decrease frequency
+
+			const mapCenterXY = MAP_WIDTH / 2;
+			const centerXBefore = (mapCenterXY + this.xOffset) * this.frequency;
+			const centerYBefore = (mapCenterXY - this.yOffset) * this.frequency;
+
 			if (this.shiftKey.isDown) {
 				this.frequency -= this.largeFrequencyChange;
 			}
 			else {
 				this.frequency -= this.smallFrequencyChange;
 			}
+
+			this.xOffset = centerXBefore / this.frequency - mapCenterXY;
+			this.yOffset = -(centerYBefore / this.frequency - mapCenterXY);
+
 			this.generateMap();
 			console.log(`frequency = ${this.frequency}`)
 		});
@@ -170,12 +189,12 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.generateMap();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
-		this.randomizeSeedKey.on("down", (key, event) => {					// change seed
+		this.randomizeSeedKey.on("down", (key, event) => {				// change seed
 			noise.seed(Math.random());
 			this.generateMap();
 			console.log("changed seed");
 		});
-		this.resetChangesKey.on("down", (key, event) => {						// reset
+		this.resetChangesKey.on("down", (key, event) => {				// reset
 			this.xOffset = this.startingXOffset;
 			this.yOffset = this.startingYOffset;
 			this.frequency = this.startingFrequency;
