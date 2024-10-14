@@ -214,11 +214,11 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.switchRTFKey.on("down", (key, event) => {					// switch RTF
 			if (this.rtf == 1) {
 				this.rtf = 2;
-				console.log("transforming [-1, 1] to [0, 1] via |n|")
+				console.log("transforming [-1, 1] to [0, 1] via n = |n|")
 			}
 			else {
 				this.rtf = 1;
-				console.log("transforming [-1, 1] to [0, 1] via (n-1)/2")
+				console.log("transforming [-1, 1] to [0, 1] via n = (n-1)/2")
 			}
 			this.generate();
 		});
