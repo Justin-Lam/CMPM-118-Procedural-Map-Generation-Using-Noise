@@ -1,7 +1,7 @@
 // debug with extreme prejudice
 "use strict"
 
-const MAP_WIDTH = 40;
+const MAP_WIDTH = 30;
 const TILE_WIDTH = 64;
 
 let config = {

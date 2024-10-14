@@ -1,11 +1,12 @@
 class ProceduralMapGeneration extends Phaser.Scene
 {
 	// Texture Parameters:
-	xOffset = 0;			// less = left, more = right
-	yOffset = 0;			// less = down, more = up
-	frequency = 0.105;		// less = less diversity/zoom in, more = more diversity/zoom out
-	fbmEnabled = true;		// "Fractional Brownian Motion"
-	numOctaves = 4;			// less = simpler, more = more complicated
+	xOffset = 0;				// less = left, more = right
+	yOffset = 0;				// less = down, more = up
+	frequency = 0.105;			// less = less diversity/zoom in, more = more diversity/zoom out
+	fbmEnabled = true;			// "Fractional Brownian Motion"
+	numOctaves = 4;				// less = simpler, more = more complicated
+	textureEnabled = false;		// refers to the perlin noise texture behind the tile-based map
 
 	// Map Parameters:
 	waterWeight = 2;
@@ -33,22 +34,35 @@ class ProceduralMapGeneration extends Phaser.Scene
 	create()
 	{
 		// Initialize things
-		this.initializeMapVariables();
+		this.initializeVariables();
 		this.initializeControls();
 
 		// Set noise seed
 		noise.seed(Math.random());
 
-		// Generate initial map
-		this.generateMap();
+		// Generate initial map/texture
+		this.generate();
 	}
 
-	initializeMapVariables()
+	initializeVariables()
 	{
-		this.map = null;
+		// contains the values returned by the perlin noise function
+		this.perlinData = [];
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			this.perlinData[y] = [];
+		}
+
+		// contains the tileIDs derived from the perlin data
 		this.mapData = [];
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			this.mapData[y] = [];
+		}
+		this.map = null;
+
+		// contains colored squares whose colors are derived from the perlin data
+		this.texture = [];
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			this.texture[y] = [];
 		}
 	}
 
@@ -60,6 +74,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.startingFrequency = this.frequency;
 		this.startingFBMEnabled = this.fbmEnabled;
 		this.startingNumOctaves = this.numOctaves;
+		this.startingTextureEnabled = this.textureEnabled;
 
 		// Initialize input keys
 		this.moveUpKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
@@ -72,8 +87,9 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.toggleFBMKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-		this.randomizeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+		this.toggleTextureKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
 		this.resetChangesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+		this.randomizeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
 		// Display controls
 		const controls = `
@@ -84,8 +100,10 @@ class ProceduralMapGeneration extends Phaser.Scene
 		Toggle FBM: F <br>
 		Change Octaves: Q/E <br>
 		<br>
-		Randomize Seed: R <br>
-		Reset Changes: C
+		Toggle Texture: T <br>
+		<br>
+		Reset Changes: C <br>
+		Randomize Seed: R
 		`;
 		document.getElementById("description").innerHTML = controls;
 
@@ -97,7 +115,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.yOffset += this.smallOffsetChange;
 			}
-			this.generateMap();
+			this.generate();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveDownKey.on("down", (key, event) => {					// move down
@@ -107,7 +125,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.yOffset -= this.smallOffsetChange;
 			}
-			this.generateMap();
+			this.generate();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveLeftKey.on("down", (key, event) => {					// move left
@@ -117,7 +135,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.xOffset -= this.smallOffsetChange;
 			}
-			this.generateMap();
+			this.generate();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.moveRightKey.on("down", (key, event) => {					// move right
@@ -127,7 +145,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			else {
 				this.xOffset += this.smallOffsetChange;
 			}
-			this.generateMap();
+			this.generate();
 			console.log(`moved to (${this.xOffset}, ${this.yOffset})`)
 		});
 		this.increaseFrequencyKey.on("down", (key, event) => {			// increase frequency
@@ -146,7 +164,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.xOffset = centerXBefore / this.frequency - mapCenterXY;
 			this.yOffset = -(centerYBefore / this.frequency - mapCenterXY);
 
-			this.generateMap();
+			this.generate();
 			console.log(`frequency = ${this.frequency}`)
 
 		});
@@ -166,12 +184,12 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.xOffset = centerXBefore / this.frequency - mapCenterXY;
 			this.yOffset = -(centerYBefore / this.frequency - mapCenterXY);
 
-			this.generateMap();
+			this.generate();
 			console.log(`frequency = ${this.frequency}`)
 		});
 		this.toggleFBMKey.on("down", (key, event) => {					// toggle FBM
 			this.fbmEnabled = !this.fbmEnabled;
-			this.generateMap();
+			this.generate();
 			if (this.fbmEnabled) {
 				console.log("FBM enabled");
 			}
@@ -181,33 +199,64 @@ class ProceduralMapGeneration extends Phaser.Scene
 		});
 		this.increaseOctavesKey.on("down", (key, event) => {			// increase octaves
 			this.numOctaves++;
-			this.generateMap();
+			this.generate();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
 		this.decreaseOctavesKey.on("down", (key, event) => {			// decrease octaves
 			this.numOctaves--;
-			this.generateMap();
+			this.generate();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
-		this.randomizeSeedKey.on("down", (key, event) => {				// change seed
-			noise.seed(Math.random());
-			this.generateMap();
-			console.log("changed seed");
+		this.toggleTextureKey.on("down", (key, event) => {				// toggle texture
+			this.textureEnabled = !this.textureEnabled;
+			this.generate();
+			if (this.textureEnabled) {
+				console.log("showing texture");
+			}
+			else {
+				console.log("showing map");
+			}
 		});
-		this.resetChangesKey.on("down", (key, event) => {				// reset
+		this.resetChangesKey.on("down", (key, event) => {				// reset changes
 			this.xOffset = this.startingXOffset;
 			this.yOffset = this.startingYOffset;
 			this.frequency = this.startingFrequency;
 			this.fbmEnabled = this.startingFBMEnabled;
 			this.numOctaves = this.startingNumOctaves;
-			this.generateMap();
+			this.textureEnabled = this.startingTextureEnabled;
+			this.generate();
 			console.log("reset changes");
+		});
+		this.randomizeSeedKey.on("down", (key, event) => {				// randomize seed
+			noise.seed(Math.random());
+			this.generate();
+			console.log("changed seed");
 		});
 	}
 
-	generateMap()
+	generate()
 	{
-		// Use the perlin noise function to get each tile in mapData
+		// Generate perlin data
+		this.generatePerlinData();
+
+		// Destroy map & texture
+		this.destroyMapAndTexture();
+
+		// Generate map/texture
+		if (this.textureEnabled)		// generate texture
+		{
+			this.generateTexture();
+		}
+		else							// generate map
+		{
+			this.generateMapData();
+			this.createMap();
+		}
+	}
+
+	generatePerlinData()
+	{
+		// Use the perlin noise function to fill perlinData
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			for (let x = 0; x < MAP_WIDTH; x++) {
 
@@ -237,30 +286,74 @@ class ProceduralMapGeneration extends Phaser.Scene
 				
 				// Transform the value to be between [0, 1]
 				result = (result + 1) / 2;
-				//value = Math.floor(Math.abs(value) * 255);		// different way of changing the range to [0, 1] that produces a different looking type of texture
+				//result = Math.abs(result);		// different way of changing the range to [0, 1] that produces a different looking type of texture
 
-				// Use result to set the tile type
-				const waterTileID = 56;
-				const grassTileID = 40;
-				const dirtTileID = 105;
-				const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
-				if (result < this.waterWeight/totalWeight) {								// water
+				// Set the element
+				this.perlinData[y][x] = result;
+			}
+		}
+	}
+
+	destroyMapAndTexture()
+	{
+		// Destroy map
+		if (this.map != null) {
+			this.map.destroy();		// also destroys any layers
+		}
+
+		// Destroy texture
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
+				if (this.texture[y][x] != null) {
+					this.texture[y][x].destroy();
+				}	
+			}
+		}
+	}
+
+	generateTexture()
+	{
+		// Generate the texture by creating the squares and use the perlin data to determine their color
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
+
+				const value = this.perlinData[y][x];
+				const colorValue = Math.floor(value * 255)
+				const color = Phaser.Display.Color.GetColor(colorValue, colorValue, colorValue);
+				this.texture[y][x] = this.add.rectangle(x*TILE_WIDTH, y*TILE_WIDTH, TILE_WIDTH, TILE_WIDTH, color).setOrigin(0);
+			}
+		}
+	}
+
+	generateMapData()
+	{
+		// Set constants
+		const waterTileID = 56;
+		const grassTileID = 40;
+		const dirtTileID = 105;
+		const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
+
+		// Use the perlin data to set the tile type
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
+
+				const value = this.perlinData[y][x];
+				if (value < this.waterWeight/totalWeight) {								// water
 					this.mapData[y][x] = waterTileID;
 				}
-				else if (result < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
+				else if (value < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
 					this.mapData[y][x] = grassTileID;
 				}
-				else {																		// dirt
+				else {																	// dirt
 					this.mapData[y][x] = dirtTileID;
 				}
 
 			}
 		}
-
+	}
+	createMap()
+	{
 		// Use mapData to create the map
-		if (this.map != null) {
-			this.map.destroy();		// also destroy any layers
-		}
 		this.map = this.make.tilemap({
 			data: this.mapData,
 			tileWidth: TILE_WIDTH,
@@ -270,3 +363,6 @@ class ProceduralMapGeneration extends Phaser.Scene
 		const layer = this.map.createLayer(0, tileset, 0, 0);
 	}
 }
+
+// refactor fbmEnabled so we can delete the var
+// implement different range mapping formula toggle
