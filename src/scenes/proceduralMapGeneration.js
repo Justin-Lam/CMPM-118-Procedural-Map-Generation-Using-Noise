@@ -6,6 +6,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 	frequency = 0.105;			// less = less diversity/zoom in, more = more diversity/zoom out
 	fbmEnabled = true;			// "Fractional Brownian Motion"
 	numOctaves = 4;				// less = simpler, more = more complicated
+	rtf = 1;					// "range transformation formula"; 1 = (n+1)/2, 2 = |n|
 	textureEnabled = false;		// refers to the perlin noise texture behind the tile-based map
 
 	// Map Parameters:
@@ -74,6 +75,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.startingFrequency = this.frequency;
 		this.startingFBMEnabled = this.fbmEnabled;
 		this.startingNumOctaves = this.numOctaves;
+		this.startingRTF
 		this.startingTextureEnabled = this.textureEnabled;
 
 		// Initialize input keys
@@ -87,6 +89,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.toggleFBMKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 		this.increaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 		this.decreaseOctavesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+		this.switchRTFKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G);
 		this.toggleTextureKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
 		this.resetChangesKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 		this.randomizeSeedKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -101,6 +104,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		Change Octaves: Q/E <br>
 		<br>
 		Toggle Texture: T <br>
+		Switch Range Transformation Formula: G <br>
 		<br>
 		Reset Changes: C <br>
 		Randomize Seed: R
@@ -207,6 +211,17 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.generate();
 			console.log(`octaves = ${this.numOctaves}`);
 		});
+		this.switchRTFKey.on("down", (key, event) => {					// switch RTF
+			if (this.rtf == 1) {
+				this.rtf = 2;
+				console.log("transforming [-1, 1] to [0, 1] via |n|")
+			}
+			else {
+				this.rtf = 1;
+				console.log("transforming [-1, 1] to [0, 1] via (n-1)/2")
+			}
+			this.generate();
+		});
 		this.toggleTextureKey.on("down", (key, event) => {				// toggle texture
 			this.textureEnabled = !this.textureEnabled;
 			this.generate();
@@ -279,12 +294,20 @@ class ProceduralMapGeneration extends Phaser.Scene
 				result = Phaser.Math.Clamp(result, -1, 1);
 				
 				// Transform the value to be between [0, 1]
-				result = (result + 1) / 2;
-				//result = Math.abs(result);		// different way of changing the range to [0, 1] that produces a different looking type of texture
+				result = this.transformRange(result);
 
 				// Set the element
 				this.perlinData[y][x] = result;
 			}
+		}
+	}
+	transformRange(value)
+	{
+		if (this.rtf == 1) {
+			return (value + 1) / 2;
+		}
+		else {
+			return Math.abs(value);
 		}
 	}
 
@@ -357,6 +380,3 @@ class ProceduralMapGeneration extends Phaser.Scene
 		const layer = this.map.createLayer(0, tileset, 0, 0);
 	}
 }
-
-// refactor fbmEnabled so we can delete the var
-// implement different range mapping formula toggle
