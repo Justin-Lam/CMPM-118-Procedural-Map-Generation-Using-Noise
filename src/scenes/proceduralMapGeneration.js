@@ -1,6 +1,6 @@
 class ProceduralMapGeneration extends Phaser.Scene
 {
-	// Texture Parameters:
+	// Noise Parameters:
 	xOffset = 0;				// less = left, more = right
 	yOffset = 0;				// less = down, more = up
 	frequency = 0.105;			// less = less diversity/zoom in, more = more diversity/zoom out
@@ -9,16 +9,39 @@ class ProceduralMapGeneration extends Phaser.Scene
 	rtf = 1;					// "range transformation formula"; 1 = (n+1)/2, 2 = |n|
 	textureEnabled = false;		// refers to the perlin noise texture behind the tile-based map
 
-	// Map Parameters:
-	waterWeight = 2;
-	grassWeight = 1;
-	dirtWeight = 1;
-
 	// Control Parameters:
 	largeOffsetChange = 5;
 	smallOffsetChange = 1;
 	largeFrequencyChange = 0.1;
 	smallFrequencyChange = 0.01;
+
+	// Map Constants:
+	// TID = "tile ID"
+	// BR = "bottom right", LM = "left middle", TL = "top left", etc.
+	waterTID = 56;
+	grassTID = 40;
+	grassBRTID = 11;
+	grassBMTID = 25;
+	grassBLTID = 39;
+	grassTRTID = 41;
+	grassTMTID = 55;
+	grassTLTID = 69;
+	grassLMTID = 54;
+	grassRMTID = 26;
+	dirtTID = 105;
+	dirtBRTID = 76;
+	dirtBMTID = 90;
+	dirtBLTID = 104;
+	dirtTRTID = 106;
+	dirtTMTID = 120;
+	dirtTLTID = 134;
+	dirtLMTID = 119;
+	dirtRMTID = 91;
+	waterWeight = 2;
+	grassWeight = 1;
+	dirtWeight = 1;
+	totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
+
 
 	// Methods:
 	constructor() {
@@ -266,6 +289,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		else							// generate map
 		{
 			this.generateMapData();
+			this.generateTransitionTiles();
 			this.createMap();
 		}
 	}
@@ -345,25 +369,36 @@ class ProceduralMapGeneration extends Phaser.Scene
 
 	generateMapData()
 	{
-		// Set constants
-		const waterTileID = 56;
-		const grassTileID = 40;
-		const dirtTileID = 105;
-		const totalWeight = this.waterWeight + this.grassWeight + this.dirtWeight;
-
 		// Use the perlin data to set the tile type
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			for (let x = 0; x < MAP_WIDTH; x++) {
 
 				const value = this.perlinData[y][x];
-				if (value < this.waterWeight/totalWeight) {								// water
-					this.mapData[y][x] = waterTileID;
+				if (value < this.waterWeight/this.totalWeight) {								// water
+					this.mapData[y][x] = this.waterTID;
 				}
-				else if (value < (this.waterWeight+this.grassWeight)/totalWeight) {		// grass
-					this.mapData[y][x] = grassTileID;
+				else if (value < (this.waterWeight+this.grassWeight)/this.totalWeight) {		// grass
+					this.mapData[y][x] = this.grassTID;
 				}
-				else {																	// dirt
-					this.mapData[y][x] = dirtTileID;
+				else {																			// dirt
+					this.mapData[y][x] = this.dirtTID;
+				}
+
+			}
+		}
+	}
+	generateTransitionTiles()
+	{
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			for (let x = 0; x < MAP_WIDTH; x++) {
+
+				const tileID = this.mapData[y][x];
+
+				if (tileID == this.grassTID) {			// grass
+
+				}
+				else if (tileID == this.dirtTID) {		// dirt
+
 				}
 
 			}
