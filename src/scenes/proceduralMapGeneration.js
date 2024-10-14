@@ -26,8 +26,8 @@ class ProceduralMapGeneration extends Phaser.Scene
 	grassTRTID = 41;
 	grassTMTID = 55;
 	grassTLTID = 69;
-	grassLMTID = 54;
 	grassRMTID = 26;
+	grassLMTID = 54;
 	dirtTID = 105;
 	dirtBRTID = 76;
 	dirtBMTID = 90;
@@ -35,8 +35,8 @@ class ProceduralMapGeneration extends Phaser.Scene
 	dirtTRTID = 106;
 	dirtTMTID = 120;
 	dirtTLTID = 134;
-	dirtLMTID = 119;
 	dirtRMTID = 91;
+	dirtLMTID = 119;
 	waterWeight = 2;
 	grassWeight = 1;
 	dirtWeight = 1;
@@ -389,20 +389,84 @@ class ProceduralMapGeneration extends Phaser.Scene
 	}
 	generateTransitionTiles()
 	{
+		const newMapData = [];
+		for (let y = 0; y < MAP_WIDTH; y++) {
+			newMapData[y] = [];
+		}
+
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			for (let x = 0; x < MAP_WIDTH; x++) {
-
+				console.log(x, y);
 				const tileID = this.mapData[y][x];
 
-				if (tileID == this.grassTID) {			// grass
+				newMapData[y][x] = tileID;
 
+				if (tileID == this.grassTID) {									// grass
+					if (y < MAP_WIDTH-1 && this.mapData[y+1][x] != tileID) {		// bottom tile
+						if (this.mapData[y+1][x+1] != tileID) {					// bottom right tile
+							newMapData[y][x] = this.grassBRTID;
+						}
+						else if (this.mapData[y+1][x-1] != tileID) {			// bottom left tile
+							newMapData[y][x] = this.grassBLTID;
+						}
+						else {													// bottom middle tile
+							newMapData[y][x] = this.grassBMTID;
+						}
+					}
+					else if (y > 0 && this.mapData[y-1][x] != tileID) {			// top tile
+						if (this.mapData[y-1][x+1] != tileID) {					// top right tile
+							newMapData[y][x] = this.grassTRTID;
+						}
+						else if (this.mapData[y-1][x-1] != tileID) {			// top left tile
+							newMapData[y][x] = this.grassTLTID;
+						}
+						else {													// top middle tile
+							newMapData[y][x] = this.grassTMTID;
+						}
+					}
+					else if (this.mapData[y][x+1] != tileID) {					// right middle tile
+						newMapData[y][x] = this.grassRMTID;
+					}
+					else if (this.mapData[y][x-1] != tileID) {					// left middle tile
+						newMapData[y][x] = this.grassLMTID;
+					}
 				}
-				else if (tileID == this.dirtTID) {		// dirt
 
+				else if (tileID == this.dirtTID) {								// dirt
+					if (this.mapData[y+1][x] != tileID) {						// bottom tile
+						if (this.mapData[y+1][x+1] != tileID) {					// bottom right tile
+							newMapData[y][x] = this.dirtBRTID;
+						}
+						else if (this.mapData[y+1][x-1] != tileID) {			// bottom left tile
+							newMapData[y][x] = this.dirtBLTID;
+						}
+						else {													// bottom middle tile
+							newMapData[y][x] = this.dirtBMTID;
+						}
+					}
+					else if (y > 0 && this.mapData[y-1][x] != tileID) {			// top tile
+						if (this.mapData[y-1][x+1] != tileID) {					// top right tile
+							newMapData[y][x] = this.dirtTRTID;
+						}
+						else if (this.mapData[y-1][x-1] != tileID) {			// top left tile
+							newMapData[y][x] = this.dirtTLTID;
+						}
+						else {													// top middle tile
+							newMapData[y][x] = this.dirtTMTID;
+						}
+					}
+					else if (x < MAP_WIDTH-1 && this.mapData[y][x+1] != tileID) {					// right middle tile
+						newMapData[y][x] = this.dirtRMTID;
+					}
+					else if (x > 0 && this.mapData[y][x-1] != tileID) {					// left middle tile
+						newMapData[y][x] = this.dirtLMTID;
+					}
 				}
 
 			}
 		}
+
+		this.mapData = newMapData;
 	}
 	createMap()
 	{
