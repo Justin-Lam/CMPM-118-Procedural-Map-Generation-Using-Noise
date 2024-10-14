@@ -260,29 +260,23 @@ class ProceduralMapGeneration extends Phaser.Scene
 		for (let y = 0; y < MAP_WIDTH; y++) {
 			for (let x = 0; x < MAP_WIDTH; x++) {
 
+				// Stack octaves of the same position to get a perlin value thats usually between [-1, 1]
 				let result = 0;
-				if (this.fbmEnabled) {		// FBM enabled
-					
-					// Stack octaves of the same position to get a perlin value thats usually between [-1, 1]
-					let amplitude = 1;
-					let frequency = this.frequency;
-					for (let octave = 0; octave < this.numOctaves; octave++) {
-						const octaveResult = amplitude * noise.perlin2((x + this.xOffset) * frequency, (y - this.yOffset) * frequency);
-						result += octaveResult;
-						amplitude *= 0.5;
-						frequency *= 2;
-					}
-
-					// Clamp result so it's between [-1, 1]
-					result = Phaser.Math.Clamp(result, -1, 1);
-
+				let amplitude = 1;
+				let frequency = this.frequency;
+				let numOctaves = this.numOctaves;
+				if (!this.fbmEnabled) {
+					numOctaves = 1;
 				}
-				else {						// FBM disabled
-
-					// Get a perlin value thats between [-1, 1]
-					result = noise.perlin2((x + this.xOffset) * this.frequency, (y - this.yOffset) * this.frequency);
-
+				for (let octave = 0; octave < numOctaves; octave++) {
+					const octaveResult = amplitude * noise.perlin2((x + this.xOffset) * frequency, (y - this.yOffset) * frequency);
+					result += octaveResult;
+					amplitude *= 0.5;
+					frequency *= 2;
 				}
+
+				// Clamp result so it's between [-1, 1]
+				result = Phaser.Math.Clamp(result, -1, 1);
 				
 				// Transform the value to be between [0, 1]
 				result = (result + 1) / 2;
