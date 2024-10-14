@@ -75,7 +75,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 		this.startingFrequency = this.frequency;
 		this.startingFBMEnabled = this.fbmEnabled;
 		this.startingNumOctaves = this.numOctaves;
-		this.startingRTF
+		this.startingRTF = this.rtf;
 		this.startingTextureEnabled = this.textureEnabled;
 
 		// Initialize input keys
@@ -238,6 +238,7 @@ class ProceduralMapGeneration extends Phaser.Scene
 			this.frequency = this.startingFrequency;
 			this.fbmEnabled = this.startingFBMEnabled;
 			this.numOctaves = this.startingNumOctaves;
+			this.rtf = this.startingRTF;
 			this.textureEnabled = this.startingTextureEnabled;
 			this.generate();
 			console.log("reset changes");
